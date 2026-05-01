@@ -1,5 +1,6 @@
 import type { AnalysisResponse } from "@/app/api/analyze/route";
-import type { LogEntry } from "@/app/page";
+import type { DeepDiveResponse } from "@/app/api/deepdive/route";
+import type { LogEntry, FormData } from "@/app/page";
 import { useState, useEffect, useRef } from "react";
 
 interface AIPanelProps {
@@ -7,6 +8,7 @@ interface AIPanelProps {
   result: AnalysisResponse | null;
   logs: LogEntry[];
   language: "id" | "en";
+  formData: FormData;
 }
 
 const logTypeStyles = {
@@ -167,7 +169,47 @@ const priorityStyles = {
   low: "bg-blue-500/15 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]",
 };
 
-function ResultView({ result, language }: { result: AnalysisResponse; language: "id" | "en" }) {
+function ResultView({ result, language, formData }: { result: AnalysisResponse; language: "id" | "en"; formData: FormData }) {
+  const [deepDiveData, setDeepDiveData] = useState<{ [key: number]: NonNullable<DeepDiveResponse["data"]> | "loading" | "error" }>({});
+
+  const handleDeepDive = async (index: number, rec: any) => {
+    // If already loaded or loading, toggle it off
+    if (deepDiveData[index]) {
+      const copy = { ...deepDiveData };
+      delete copy[index];
+      setDeepDiveData(copy);
+      return;
+    }
+
+    setDeepDiveData(prev => ({ ...prev, [index]: "loading" }));
+
+    try {
+      const res = await fetch("/api/deepdive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recommendationTitle: rec.title,
+          recommendationDesc: rec.description,
+          context: {
+            luasLahan: parseFloat(formData.luasLahan),
+            modalAwal: parseFloat(formData.modalAwal.replace(/\D/g, "")),
+            kondisiTanah: formData.kondisiTanah,
+            cuacaDominan: formData.cuacaDominan,
+          },
+          language
+        }),
+      });
+      const data: DeepDiveResponse = await res.json();
+      if (data.success && data.data) {
+        setDeepDiveData(prev => ({ ...prev, [index]: data.data! }));
+      } else {
+        setDeepDiveData(prev => ({ ...prev, [index]: "error" }));
+      }
+    } catch {
+      setDeepDiveData(prev => ({ ...prev, [index]: "error" }));
+    }
+  };
+
   if (!result.success || !result.data) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -242,7 +284,7 @@ function ResultView({ result, language }: { result: AnalysisResponse; language: 
         </h3>
         <div className="grid gap-4">
           {data.recommendations.map((rec, i) => (
-            <div key={i} className="group rounded-2xl border border-border/60 bg-surface/40 backdrop-blur-sm p-6 hover:border-accent/40 hover:bg-surface/80 transition-all duration-300 shadow-sm hover:shadow-md">
+            <div key={i} className="group rounded-2xl border border-border/60 bg-surface/40 backdrop-blur-sm p-6 transition-all duration-300 shadow-sm">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h4 className="text-base font-bold text-foreground group-hover:text-accent transition-colors">{rec.title}</h4>
                 <span className={`shrink-0 rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${priorityStyles[rec.priority]}`}>
@@ -250,6 +292,77 @@ function ResultView({ result, language }: { result: AnalysisResponse; language: 
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-muted group-hover:text-foreground/80 transition-colors">{rec.description}</p>
+              
+              {/* Deep Dive Trigger */}
+              <button 
+                onClick={() => handleDeepDive(i, rec)}
+                className="mt-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-accent hover:text-accent-hover transition-colors"
+              >
+                {deepDiveData[i] === "loading" ? (
+                   <>
+                     <span className="h-3 w-3 rounded-full bg-accent animate-ping" />
+                     {language === "en" ? "Connecting to AI..." : "Menghubungkan ke AI..."}
+                   </>
+                ) : deepDiveData[i] ? (
+                   <>
+                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 15l-6-6-6 6"/></svg>
+                     {language === "en" ? "Close Guide" : "Tutup Panduan"}
+                   </>
+                ) : (
+                   <>
+                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                     {language === "en" ? "Deep Dive (Technical Guide)" : "Tanya Lebih Dalam (Panduan Teknis)"}
+                   </>
+                )}
+              </button>
+
+              {/* Deep Dive Content */}
+              {deepDiveData[i] && deepDiveData[i] !== "loading" && deepDiveData[i] !== "error" && (
+                <div className="mt-5 pt-5 border-t border-border/50 animate-fade-in-up">
+                  <h5 className="text-xs font-bold text-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    {language === "en" ? "Implementation Guide" : "Panduan Implementasi Teknis"}
+                  </h5>
+                  
+                  <div className="space-y-4 mb-5">
+                    {((deepDiveData[i] as any).steps || []).map((step: any, j: number) => (
+                      <div key={j} className="flex gap-3">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/20 text-[10px] font-bold text-accent">
+                          {j + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-bold text-foreground/90">{step.title}</p>
+                          <p className="text-xs text-muted leading-relaxed mt-1">{step.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-lg bg-surface-alt/80 p-4 border border-border/50">
+                      <p className="text-[10px] font-bold uppercase text-muted mb-1.5 flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01M17 12h.01M7 12h.01"/></svg>
+                        {language === "en" ? "Cost Estimation" : "Estimasi Biaya"}
+                      </p>
+                      <p className="text-xs text-foreground/90 font-medium leading-relaxed">{(deepDiveData[i] as any).costEstimation}</p>
+                    </div>
+                    <div className="rounded-lg bg-accent/10 p-4 border border-accent/20">
+                      <p className="text-[10px] font-bold uppercase text-accent mb-1.5 flex items-center gap-1.5">
+                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                         Pro Tip
+                      </p>
+                      <p className="text-xs text-accent font-medium leading-relaxed">{(deepDiveData[i] as any).proTip}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {deepDiveData[i] === "error" && (
+                <div className="mt-4 pt-4 border-t border-border/50 text-xs font-medium text-red-400 flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {language === "en" ? "Failed to generate technical guide. Please try again." : "Gagal memuat panduan teknis. Silakan coba lagi."}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -285,7 +398,7 @@ function ResultView({ result, language }: { result: AnalysisResponse; language: 
   );
 }
 
-export default function AIPanel({ isAnalyzing, result, logs, language }: AIPanelProps) {
+export default function AIPanel({ isAnalyzing, result, logs, language, formData }: AIPanelProps) {
   return (
     <section className="flex flex-1 flex-col overflow-hidden w-full h-full" id="ai-panel">
       {/* Content */}
@@ -293,7 +406,7 @@ export default function AIPanel({ isAnalyzing, result, logs, language }: AIPanel
         <div className="flex-1 overflow-hidden flex flex-col">
           {isAnalyzing 
             ? <ScanningAnimation language={language} /> 
-            : result ? <ResultView result={result} language={language} /> 
+            : result ? <ResultView result={result} language={language} formData={formData} /> 
             : <EmptyState language={language} />}
         </div>
         

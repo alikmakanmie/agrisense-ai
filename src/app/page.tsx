@@ -186,7 +186,7 @@ export default function Home() {
             {activeTab === "history" ? (
               <HistoryPanel history={history} onView={handleViewHistoryItem} language={language} />
             ) : (
-              <AIPanel isAnalyzing={isAnalyzing} result={result} logs={logs} language={language} />
+              <AIPanel isAnalyzing={isAnalyzing} result={result} logs={logs} language={language} formData={formData} />
             )}
           </div>
         </main>
