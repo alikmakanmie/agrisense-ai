@@ -276,7 +276,7 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="border-t border-border/50 px-6 py-4 shrink-0 bg-surface/50 backdrop-blur-md">
-          <p className="text-[10px] font-medium text-muted/60 text-center">Powered by alikmakanmie • 2025</p>
+          <p className="text-[10px] font-medium text-muted/60 text-center">Powered by alikmakanmie • 2026</p>
         </div>
       </aside>
     </>
