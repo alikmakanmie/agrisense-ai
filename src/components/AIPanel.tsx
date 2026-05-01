@@ -1,11 +1,12 @@
 import type { AnalysisResponse } from "@/app/api/analyze/route";
 import type { LogEntry } from "@/app/page";
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface AIPanelProps {
   isAnalyzing: boolean;
   result: AnalysisResponse | null;
   logs: LogEntry[];
+  language: "id" | "en";
 }
 
 const logTypeStyles = {
@@ -22,25 +23,33 @@ const logTypeIcons = {
   processing: "◌",
 };
 
-function ActivityLog({ logs, isAnalyzing }: { logs: LogEntry[]; isAnalyzing: boolean }) {
+function ActivityLog({ logs, isAnalyzing, language }: { logs: LogEntry[]; isAnalyzing: boolean; language: "id" | "en" }) {
+  const [isOpen, setIsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (isOpen && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [logs]);
+  }, [logs, isOpen]);
 
   if (logs.length === 0) return null;
 
   return (
-    <div className="border-t border-border/50 bg-surface-alt/30 backdrop-blur-md">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-surface/40">
+    <div className="border-t border-border/50 bg-surface-alt/30 backdrop-blur-md transition-all">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-6 py-3 border-b border-border/50 bg-surface/40 hover:bg-surface/60 transition-colors cursor-pointer"
+      >
         <div className="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted">
-            <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-muted transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}>
+            <path d="M19 9l-7 7-7-7"/>
           </svg>
-          <span className="text-xs font-bold uppercase tracking-widest text-muted">Activity Log</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-muted">
+            {isOpen 
+              ? (language === "en" ? "Hide Activity Log" : "Sembunyikan Log Aktivitas")
+              : (language === "en" ? "View Activity Log" : "Lihat Log Aktivitas")}
+          </span>
         </div>
         {isAnalyzing && (
           <span className="flex items-center gap-2 bg-amber-400/10 px-2 py-1 rounded-md">
@@ -48,29 +57,42 @@ function ActivityLog({ logs, isAnalyzing }: { logs: LogEntry[]; isAnalyzing: boo
             <span className="text-[10px] font-mono font-bold tracking-wider text-amber-400">LIVE</span>
           </span>
         )}
-      </div>
-      <div ref={scrollRef} className="max-h-48 overflow-y-auto px-6 py-4 font-mono text-xs space-y-2 custom-scrollbar">
-        {logs.map((log, i) => (
-          <div key={i} className="flex items-start gap-3 animate-fade-in-up" style={{ animationDuration: "0.2s" }}>
-            <span className="text-muted/50 shrink-0 w-16">{log.timestamp}</span>
-            <span className={`shrink-0 mt-0.5 ${logTypeStyles[log.type]}`}>{logTypeIcons[log.type]}</span>
-            <span className={`${logTypeStyles[log.type]} break-all font-medium`}>{log.message}</span>
-          </div>
-        ))}
-        {isAnalyzing && (
-          <div className="flex items-center gap-3 mt-4">
-            <span className="text-muted/50 w-16" />
-            <span className="text-amber-400 animate-pulse mt-0.5">◌</span>
-            <span className="text-amber-400 font-medium">Menunggu respons AI<span className="animate-pulse">...</span></span>
-          </div>
-        )}
-      </div>
+      </button>
+      
+      {isOpen && (
+        <div ref={scrollRef} className="max-h-48 overflow-y-auto px-6 py-4 font-mono text-xs space-y-2 custom-scrollbar">
+          {logs.map((log, i) => (
+            <div key={i} className="flex items-start gap-3 animate-fade-in-up" style={{ animationDuration: "0.2s" }}>
+              <span className="text-muted/50 shrink-0 w-16">{log.timestamp}</span>
+              <span className={`shrink-0 mt-0.5 ${logTypeStyles[log.type]}`}>{logTypeIcons[log.type]}</span>
+              <span className={`${logTypeStyles[log.type]} break-all font-medium`}>{log.message}</span>
+            </div>
+          ))}
+          {isAnalyzing && (
+            <div className="flex items-center gap-3 mt-4">
+              <span className="text-muted/50 w-16" />
+              <span className="text-amber-400 animate-pulse mt-0.5">◌</span>
+              <span className="text-amber-400 font-medium">
+                {language === "en" ? "Waiting for AI response" : "Menunggu respons AI"}
+                <span className="animate-pulse">...</span>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function ScanningAnimation() {
-  const lines = [
+function ScanningAnimation({ language }: { language: "id" | "en" }) {
+  const lines = language === "en" ? [
+    "Initializing AgriSense AI engine...",
+    "Loading soil composition database...",
+    "Analyzing climate pattern matrix...",
+    "Matching crop yield models...",
+    "Evaluating financial projections...",
+    "Generating strategic recommendations...",
+  ] : [
     "Menginisialisasi AgriSense AI engine...",
     "Memuat database komposisi tanah...",
     "Menganalisis matriks pola iklim...",
@@ -91,7 +113,9 @@ function ScanningAnimation() {
               <span className="h-3 w-3 rounded-full bg-accent animate-pulse" style={{ animationDelay: "0.3s" }} />
               <span className="h-3 w-3 rounded-full bg-accent animate-pulse" style={{ animationDelay: "0.6s" }} />
             </div>
-            <span className="text-sm font-mono font-bold tracking-widest text-accent">MEMPROSES DATA</span>
+            <span className="text-sm font-mono font-bold tracking-widest text-accent">
+              {language === "en" ? "PROCESSING DATA" : "MEMPROSES DATA"}
+            </span>
           </div>
 
           <div className="space-y-4 font-mono text-sm">
@@ -112,7 +136,7 @@ function ScanningAnimation() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ language }: { language: "id" | "en" }) {
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div className="text-center max-w-sm">
@@ -122,9 +146,15 @@ function EmptyState() {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
         </div>
-        <h3 className="text-2xl font-bold text-foreground mb-3">Siap Menganalisis</h3>
+        <h3 className="text-2xl font-bold text-foreground mb-3">
+          {language === "en" ? "Ready to Analyze" : "Siap Menganalisis"}
+        </h3>
         <p className="text-base text-muted/80 leading-relaxed">
-          Pilih parameter pada panel di sebelah kiri, kemudian klik <br/> <span className="font-bold text-accent inline-flex items-center gap-1 mt-2 bg-accent/10 px-2 py-0.5 rounded-md">Analyze Strategy</span> <br/> untuk mendapatkan rekomendasi AI.
+          {language === "en" ? (
+            <>Select parameters on the left panel, then click <br/> <span className="font-bold text-accent inline-flex items-center gap-1 mt-2 bg-accent/10 px-2 py-0.5 rounded-md">Analyze Strategy</span> <br/> to get AI recommendations.</>
+          ) : (
+            <>Pilih parameter pada panel di sebelah kiri, kemudian klik <br/> <span className="font-bold text-accent inline-flex items-center gap-1 mt-2 bg-accent/10 px-2 py-0.5 rounded-md">Analyze Strategy</span> <br/> untuk mendapatkan rekomendasi AI.</>
+          )}
         </p>
       </div>
     </div>
@@ -137,13 +167,7 @@ const priorityStyles = {
   low: "bg-blue-500/15 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]",
 };
 
-const priorityLabels = {
-  high: "Tinggi",
-  medium: "Sedang",
-  low: "Rendah",
-};
-
-function ResultView({ result }: { result: AnalysisResponse }) {
+function ResultView({ result, language }: { result: AnalysisResponse; language: "id" | "en" }) {
   if (!result.success || !result.data) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -151,13 +175,18 @@ function ResultView({ result }: { result: AnalysisResponse }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20 text-red-500">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
-          <p className="text-base text-red-400 font-bold">{result.error || "Analisis gagal."}</p>
+          <p className="text-base text-red-400 font-bold">{result.error || (language === "en" ? "Analysis failed." : "Analisis gagal.")}</p>
         </div>
       </div>
     );
   }
 
   const { data, meta } = result;
+
+  const priorityLabels = {
+    id: { high: "Tinggi", medium: "Sedang", low: "Rendah" },
+    en: { high: "High", medium: "Medium", low: "Low" }
+  }[language];
 
   return (
     <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
@@ -168,7 +197,9 @@ function ResultView({ result }: { result: AnalysisResponse }) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-accent"></span>
           </span>
-          <span className="text-sm font-mono font-bold text-accent uppercase tracking-widest">Analisis Selesai</span>
+          <span className="text-sm font-mono font-bold text-accent uppercase tracking-widest">
+            {language === "en" ? "Analysis Complete" : "Analisis Selesai"}
+          </span>
         </div>
         
         {/* AI Source Badge */}
@@ -178,7 +209,9 @@ function ResultView({ result }: { result: AnalysisResponse }) {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             </div>
             <div>
-              <p className="text-[11px] font-bold text-accent uppercase tracking-wider">Dihasilkan oleh Groq AI</p>
+              <p className="text-[11px] font-bold text-accent uppercase tracking-wider">
+                {language === "en" ? "Generated by Groq AI" : "Dihasilkan oleh Groq AI"}
+              </p>
               <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono text-muted">
                 <span>⏱️ {meta.responseTimeMs}ms</span>
                 <span>•</span>
@@ -196,7 +229,7 @@ function ResultView({ result }: { result: AnalysisResponse }) {
         <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-blue-500" />
         <h3 className="text-sm font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          Ringkasan Eksekutif
+          {language === "en" ? "Executive Summary" : "Ringkasan Eksekutif"}
         </h3>
         <p className="text-base leading-relaxed text-foreground/90 font-medium">{data.summary}</p>
       </div>
@@ -205,7 +238,7 @@ function ResultView({ result }: { result: AnalysisResponse }) {
       <div className="animate-fade-in-up stagger-2">
         <h3 className="text-sm font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Rekomendasi Strategis
+          {language === "en" ? "Strategic Recommendations" : "Rekomendasi Strategis"}
         </h3>
         <div className="grid gap-4">
           {data.recommendations.map((rec, i) => (
@@ -213,7 +246,7 @@ function ResultView({ result }: { result: AnalysisResponse }) {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h4 className="text-base font-bold text-foreground group-hover:text-accent transition-colors">{rec.title}</h4>
                 <span className={`shrink-0 rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${priorityStyles[rec.priority]}`}>
-                  {priorityLabels[rec.priority]}
+                  {priorityLabels[rec.priority as "high"|"medium"|"low"] || rec.priority}
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-muted group-hover:text-foreground/80 transition-colors">{rec.description}</p>
@@ -227,14 +260,14 @@ function ResultView({ result }: { result: AnalysisResponse }) {
         <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/5 to-transparent backdrop-blur-md p-6 shadow-lg">
           <h3 className="text-sm font-bold uppercase tracking-widest text-accent mb-4 flex items-center gap-2">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-            Estimasi ROI
+            {language === "en" ? "Estimated ROI" : "Estimasi ROI"}
           </h3>
           <p className="text-sm leading-relaxed text-foreground/90 font-medium">{data.estimatedROI}</p>
         </div>
         <div className="rounded-2xl border border-warning/20 bg-gradient-to-br from-warning/5 to-transparent backdrop-blur-md p-6 shadow-lg">
           <h3 className="text-sm font-bold uppercase tracking-widest text-warning mb-4 flex items-center gap-2">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-            Penilaian Risiko
+            {language === "en" ? "Risk Assessment" : "Penilaian Risiko"}
           </h3>
           <p className="text-sm leading-relaxed text-foreground/90 font-medium">{data.riskAssessment}</p>
         </div>
@@ -244,7 +277,7 @@ function ResultView({ result }: { result: AnalysisResponse }) {
       <div className="rounded-2xl border border-info/20 bg-gradient-to-br from-info/5 to-transparent backdrop-blur-md p-6 shadow-lg animate-fade-in-up stagger-4">
         <h3 className="text-sm font-bold uppercase tracking-widest text-info mb-4 flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Timeline Implementasi
+          {language === "en" ? "Implementation Timeline" : "Timeline Implementasi"}
         </h3>
         <p className="text-sm leading-relaxed text-foreground/90 font-medium">{data.timeline}</p>
       </div>
@@ -252,17 +285,20 @@ function ResultView({ result }: { result: AnalysisResponse }) {
   );
 }
 
-export default function AIPanel({ isAnalyzing, result, logs }: AIPanelProps) {
+export default function AIPanel({ isAnalyzing, result, logs, language }: AIPanelProps) {
   return (
     <section className="flex flex-1 flex-col overflow-hidden w-full h-full" id="ai-panel">
       {/* Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-hidden flex flex-col">
-          {isAnalyzing ? <ScanningAnimation /> : result ? <ResultView result={result} /> : <EmptyState />}
+          {isAnalyzing 
+            ? <ScanningAnimation language={language} /> 
+            : result ? <ResultView result={result} language={language} /> 
+            : <EmptyState language={language} />}
         </div>
         
         {/* Activity Log - always visible when there are logs */}
-        <ActivityLog logs={logs} isAnalyzing={isAnalyzing} />
+        <ActivityLog logs={logs} isAnalyzing={isAnalyzing} language={language} />
       </div>
     </section>
   );

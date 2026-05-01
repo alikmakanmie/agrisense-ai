@@ -35,6 +35,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  
+  // Language State
+  const [language, setLanguage] = useState<"id" | "en">("id");
 
   // Load history from localStorage on mount
   useEffect(() => {
@@ -72,7 +75,7 @@ export default function Home() {
     addLog("Memulai AgriSense AI Engine...", "processing");
 
     await delay(400);
-    addLog(`Parameter: ${formData.luasLahan} ha, Rp ${parseInt(formData.modalAwal).toLocaleString("id-ID")}`, "info");
+    addLog(`Parameter: ${formData.luasLahan} ha, Rp ${formData.modalAwal}`, "info");
 
     await delay(300);
     addLog(`Tanah: ${formData.kondisiTanah} | Cuaca: ${formData.cuacaDominan}`, "info");
@@ -94,9 +97,10 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           luasLahan: parseFloat(formData.luasLahan),
-          modalAwal: parseFloat(formData.modalAwal),
+          modalAwal: parseFloat(formData.modalAwal.replace(/\D/g, "")),
           kondisiTanah: formData.kondisiTanah,
           cuacaDominan: formData.cuacaDominan,
+          language: language,
         }),
       });
       const elapsed = Date.now() - startTime;
@@ -158,6 +162,8 @@ export default function Home() {
         setFormData={setFormData}
         onAnalyze={handleAnalyze}
         isAnalyzing={isAnalyzing}
+        language={language}
+        setLanguage={setLanguage}
       />
       
       <div className="flex flex-1 flex-col overflow-hidden relative z-10 backdrop-blur-sm">
@@ -178,9 +184,9 @@ export default function Home() {
         <main className="flex flex-1 overflow-hidden flex-col p-4 lg:p-6">
           <div className="flex-1 rounded-2xl border border-border/50 bg-surface/40 backdrop-blur-md shadow-2xl overflow-hidden flex flex-col">
             {activeTab === "history" ? (
-              <HistoryPanel history={history} onView={handleViewHistoryItem} />
+              <HistoryPanel history={history} onView={handleViewHistoryItem} language={language} />
             ) : (
-              <AIPanel isAnalyzing={isAnalyzing} result={result} logs={logs} />
+              <AIPanel isAnalyzing={isAnalyzing} result={result} logs={logs} language={language} />
             )}
           </div>
         </main>
